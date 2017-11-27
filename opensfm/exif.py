@@ -36,8 +36,10 @@ def get_tag_as_float(tags, key):
         return None
 
 
-def compute_focal(focal_35, focal, sensor_width, sensor_string):
-    if focal_35 > 0:
+def compute_focal(focal_35, focal, f_number, sensor_width, sensor_string):
+    if f_number:
+        focal_ratio = f_number
+    elif focal_35 > 0:
         focal_ratio = focal_35 / 36.0  # 35mm film produces 36x24mm pictures.
     else:
         if not sensor_width:
@@ -161,9 +163,12 @@ class EXIF:
 
     def extract_focal(self):
         make, model = self.extract_make(), self.extract_model()
+
+        print sensor_string(make, model)
         focal_35, focal_ratio = compute_focal(
             get_tag_as_float(self.tags, 'EXIF FocalLengthIn35mmFilm'),
             get_tag_as_float(self.tags, 'EXIF FocalLength'),
+            get_tag_as_float(self.tags, 'EXIF FNumber'),
             get_tag_as_float(self.tags, 'EXIF CCD width'),
             sensor_string(make, model))
         return focal_35, focal_ratio
