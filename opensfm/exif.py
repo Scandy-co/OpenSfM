@@ -163,8 +163,6 @@ class EXIF:
 
     def extract_focal(self):
         make, model = self.extract_make(), self.extract_model()
-
-        print sensor_string(make, model)
         focal_35, focal_ratio = compute_focal(
             get_tag_as_float(self.tags, 'EXIF FocalLengthIn35mmFilm'),
             get_tag_as_float(self.tags, 'EXIF FocalLength'),
