@@ -29,12 +29,15 @@ Install OpenCV using
     brew tap homebrew/science
     brew install opencv
     brew install ceres-solver
-    brew install boost-python
+    # boost 1.64
+    brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/3df9cdfc25f796ec8d3ffd0a0a12476cf6d413d5/Formula/boost.rb --c++11
+    # boost-python 1.64
+    brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/198f8903db0bb77f1b84e19e020c6f825210433d/Formula/boost-python.rb --c++11
 
 And install OpenGV using
 
     brew install eigen
-    git clone https://github.com/paulinus/opengv.git
+    git clone https://github.com/Scandy-Co/opengv.git
     cd opengv
     mkdir build
     cd build
