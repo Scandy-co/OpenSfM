@@ -4,17 +4,18 @@ OpenSfM
 =======
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    building
    using
    dataset
    geometry
    cam_coord_system
-   api
    reconstruction_module
-   dense
-
+   large
+   reporting
+   api
+   python3
 
 Indices and tables
 ==================

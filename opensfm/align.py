@@ -1,5 +1,6 @@
 """Tools to align a reconstruction to GPS and GCP data."""
 
+import logging
 from collections import defaultdict
 
 import numpy as np
@@ -7,6 +8,8 @@ import numpy as np
 from opensfm import csfm
 from opensfm import multiview
 from opensfm import transformations as tf
+
+logger = logging.getLogger(__name__)
 
 
 def align_reconstruction(reconstruction, gcp, config):
@@ -48,7 +51,7 @@ def align_reconstruction_similarity(reconstruction, gcp, config):
      - navie: does a direct 3D-3D fit
      - orientation_prior: assumes a particular camera orientation
     """
-    align_method = config.get('align_method', 'orientation_prior')
+    align_method = config['align_method']
     if align_method == 'orientation_prior':
         return align_reconstruction_orientation_prior_similarity(
             reconstruction, config)
@@ -101,7 +104,7 @@ def align_reconstruction_orientation_prior_similarity(reconstruction, config):
      - vertical: assumes cameras are looking down towards the ground
     """
     X, Xp = [], []
-    orientation_type = config.get('align_orientation_prior', 'horizontal')
+    orientation_type = config['align_orientation_prior']
     onplane, verticals = [], []
     for shot in reconstruction.shots.values():
         X.append(shot.pose.get_origin())
@@ -174,7 +177,7 @@ def get_horizontal_and_vertical_directions(R, orientation):
         return -R[1, :], -R[0, :], -R[2, :]
     if orientation == 8:
         return R[1, :], -R[0, :], R[2, :]
-    print 'ERROR unknown orientation {0}. Using 1 instead'.format(orientation)
+    logger.error('unknown orientation {0}. Using 1 instead'.format(orientation))
     return R[0, :], R[1, :], R[2, :]
 
 

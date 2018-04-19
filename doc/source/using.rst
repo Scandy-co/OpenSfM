@@ -8,12 +8,12 @@ Using
 Quickstart
 ----------
 
-An example dataset is available at ``data/berlin``.  You can reconstruct it using by running
-::
+An example dataset is available at ``data/berlin``.  You can reconstruct it using by running::
+
     bin/opensfm_run_all data/berlin
 
-This will run the entire SfM pipeline and produce the file ``data/berlin/reconstruction.meshed.json`` as output. To visualize the result you can start a HTTP server running
-::
+This will run the entire SfM pipeline and produce the file ``data/berlin/reconstruction.meshed.json`` as output. To visualize the result you can start a HTTP server running::
+
     python -m SimpleHTTPServer
 
 and then browse `<http://localhost:8000/viewer/reconstruction.html#file=/data/berlin/reconstruction.meshed.json>`_
@@ -23,8 +23,8 @@ You should see something like
 
 You can click twice on an image to see it.  Then use arrows to move between images.
 
-If you want to get a denser point cloud, you can run
-::
+If you want to get a denser point cloud, you can run::
+
     bin/opensfm undistort data/berlin
     bin/opensfm compute_depthmaps data/berlin
 
@@ -38,7 +38,7 @@ For the Berlin dataset you should get something similar to this
 To reconstruct your own images,
 
 1. put some images in ``data/DATASET_NAME/images/``, and
-2. copy ``data/berlin/config.yml` to ``data/DATASET_NAME/config.yaml``
+2. copy ``data/berlin/config.yaml` to ``data/DATASET_NAME/config.yaml``
 
 
 .. _Meshlab: http://www.meshlab.net/
@@ -52,8 +52,8 @@ There are several steps required to do a 3D reconstruction including feature det
 
 The single application ``bin/opensfm`` is used to run those commands.  The first argument of the application is the command to run and the second one is the dataset to run the commands on.
 
-Here is the usage page of ``bin/opensfm``, which lists the available commands
-::
+Here is the usage page of ``bin/opensfm``, which lists the available commands::
+
     usage: opensfm [-h] command ...
 
     positional arguments:

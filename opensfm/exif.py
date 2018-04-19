@@ -3,6 +3,8 @@ import exifread
 import logging
 import xmltodict as x2d
 
+from six import string_types
+
 from opensfm.sensors import sensor_data
 from opensfm import types
 
@@ -39,7 +41,7 @@ def get_tag_as_float(tags, key):
 def compute_focal(focal_35, focal, f_number, sensor_width, sensor_string):
     if f_number:
         focal_ratio = f_number
-    elif focal_35 > 0:
+    elif focal_35 is not None and focal_35 > 0:
         focal_ratio = focal_35 / 36.0  # 35mm film produces 36x24mm pictures.
     else:
         if not sensor_width:
@@ -60,7 +62,13 @@ def sensor_string(make, model):
     return (make.strip() + ' ' + model.strip()).lower()
 
 
-def camera_id(make, model, width, height, projection_type, focal):
+def camera_id(exif):
+    return camera_id_(exif['make'], exif['model'],
+                      exif['width'], exif['height'],
+                      exif['projection_type'], exif['focal_ratio'])
+
+
+def camera_id_(make, model, width, height, projection_type, focal):
     if make != 'unknown':
         # remove duplicate 'make' information in 'model'
         model = model.replace(make, '')
@@ -76,7 +84,7 @@ def camera_id(make, model, width, height, projection_type, focal):
 
 
 def extract_exif_from_file(fileobj):
-    if isinstance(fileobj, (str, unicode)):
+    if isinstance(fileobj, string_types):
         with open(fileobj) as f:
             exif_data = EXIF(f)
     else:
@@ -132,6 +140,16 @@ class EXIF:
             width, height = -1, -1
         return width, height
 
+    def _decode_make_model(self, value):
+        """Python 2/3 compatible decoding of make/model field."""
+        if hasattr(value, 'decode'):
+            try:
+                return value.decode('utf-8')
+            except UnicodeDecodeError:
+                return 'unknown'
+        else:
+            return value
+
     def extract_make(self):
         # Camera make and model
         if 'EXIF LensMake' in self.tags:
@@ -140,10 +158,7 @@ class EXIF:
             make = self.tags['Image Make'].values
         else:
             make = 'unknown'
-        try:
-            return make.decode('utf-8')
-        except UnicodeDecodeError:
-            return 'unknown'
+        return self._decode_make_model(make)
 
     def extract_model(self):
         if 'EXIF LensModel' in self.tags:
@@ -152,10 +167,7 @@ class EXIF:
             model = self.tags['Image Model'].values
         else:
             model = 'unknown'
-        try:
-            return model.decode('utf-8')
-        except UnicodeDecodeError:
-            return 'unknown'
+        return self._decode_make_model(model)
 
     def extract_projection_type(self):
         gpano = get_gpano_from_xmp(self.xmp)
@@ -253,7 +265,6 @@ class EXIF:
         geo = self.extract_geo()
         capture_time = self.extract_capture_time()
         d = {
-            'camera': camera_id(make, model, width, height, projection_type, focal_ratio),
             'make': make,
             'model': model,
             'width': width,
@@ -264,6 +275,7 @@ class EXIF:
             'capture_time': capture_time,
             'gps': geo
         }
+        d['camera'] = camera_id(d)
         return d
 
 
@@ -319,7 +331,10 @@ def focal_ratio_calibration(exif):
         return {
             'focal': exif['focal_ratio'],
             'k1': 0.0,
-            'k2': 0.0
+            'k2': 0.0,
+            'p1': 0.0,
+            'p2': 0.0,
+            'k3': 0.0
         }
 
 
@@ -327,7 +342,10 @@ def default_calibration(data):
     return {
         'focal': data.config['default_focal_prior'],
         'k1': 0.0,
-        'k2': 0.0
+        'k2': 0.0,
+        'p1': 0.0,
+        'p2': 0.0,
+        'k3': 0.0
     }
 
 
@@ -344,10 +362,29 @@ def camera_from_exif_metadata(metadata, data):
         camera.id = metadata['camera']
         camera.width = metadata['width']
         camera.height = metadata['height']
-        camera.projection_type = metadata.get('projection_type', 'perspective')
+        camera.projection_type = pt
         camera.focal = calib['focal']
         camera.k1 = calib['k1']
         camera.k2 = calib['k2']
+        camera.focal_prior = calib['focal']
+        camera.k1_prior = calib['k1']
+        camera.k2_prior = calib['k2']
+        return camera
+    elif pt == 'brown':
+        calib = (hard_coded_calibration(metadata)
+                 or focal_ratio_calibration(metadata)
+                 or default_calibration(data))
+        camera = types.BrownPerspectiveCamera()
+        camera.id = metadata['camera']
+        camera.width = metadata['width']
+        camera.height = metadata['height']
+        camera.projection_type = pt
+        camera.focal = calib['focal']
+        camera.k1 = calib['k1']
+        camera.k2 = calib['k2']
+        camera.p1 = calib['p1']
+        camera.p2 = calib['p2']
+        camera.k3 = calib['k3']
         camera.focal_prior = calib['focal']
         camera.k1_prior = calib['k1']
         camera.k2_prior = calib['k2']

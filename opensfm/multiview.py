@@ -105,15 +105,32 @@ def rq(A):
 
 
 def vector_angle(u, v):
-    '''
-    >>> u = [ 0.99500417 -0.33333333 -0.09983342]
-    >>> v = [ 0.99500417 -0.33333333 -0.09983342]
+    """Angle between two vectors.
+
+    >>> u = [ 0.99500417, -0.33333333, -0.09983342]
+    >>> v = [ 0.99500417, -0.33333333, -0.09983342]
     >>> vector_angle(u, v)
     0.0
-    '''
-    cos = np.dot(u, v) / math.sqrt(np.dot(u,u) * np.dot(v,v))
-    if cos >= 1.0: return 0.0
-    else: return math.acos(cos)
+    """
+    cos = np.dot(u, v) / math.sqrt(np.dot(u, u) * np.dot(v, v))
+    if cos >= 1.0:
+        return 0.0
+    else:
+        return math.acos(cos)
+
+
+def vector_angle_many(u, v):
+    """Angles between to lists of vectors.
+
+    >>> u = [[0.99500417, -0.33333333, -0.09983342], [0, -1, 0], [0, 1, 0]]
+    >>> v = [[0.99500417, -0.33333333, -0.09983342], [0, +1, 0], [0, 0, 1]]
+    >>> angles = vector_angle_many(u, v)
+    >>> np.allclose(angles, [0., 3.1416, 1.5708])
+    True
+    """
+    ua = np.array(u, dtype=np.float64, copy=False).reshape(-1, 3)
+    va = np.array(v, dtype=np.float64, copy=False).reshape(-1, 3)
+    return tf.angle_between_vectors(ua, va, axis=1)
 
 
 def decompose_similarity_transform(T):
@@ -141,8 +158,13 @@ def ransac(kernel, threshold):
     >>> x = np.array([1., 2., 3.])
     >>> y = np.array([2., 4., 7.])
     >>> kernel = TestLinearKernel(x, y)
-    >>> ransac(kernel, 0.1)
-    (2.0, array([0, 1]), 0.10000000000000001)
+    >>> model, inliers, error = ransac(kernel, 0.1)
+    >>> np.allclose(model, 2.0)
+    True
+    >>> inliers
+    array([0, 1])
+    >>> np.allclose(error, 0.1)
+    True
     '''
     max_iterations = 1000
     best_error = float('inf')
@@ -153,7 +175,7 @@ def ransac(kernel, threshold):
         try:
             samples = kernel.sampling()
         except AttributeError:
-            samples = random.sample(xrange(kernel.num_samples()),
+            samples = random.sample(range(kernel.num_samples()),
                                 kernel.required_samples)
         models = kernel.fit(samples)
         for model in models:
@@ -179,8 +201,9 @@ class TestLinearKernel:
     >>> models = kernel.fit([0])
     >>> models
     [2.0]
-    >>> kernel.evaluate(models[0])
-    array([ 0.,  0.,  1.])
+    >>> errors = kernel.evaluate(models[0])
+    >>> np.allclose(errors, [0., 0., 1.])
+    True
     '''
     required_samples = 1
 
@@ -219,10 +242,10 @@ class PlaneKernel:
     def sampling(self):
         samples = {}
         if len(self.vectors)>0:
-            samples['points'] = self.points[random.sample(xrange(len(self.points)), 2),:]
-            samples['vectors'] = [self.vectors[i] for i in random.sample(xrange(len(self.vectors)), 1)]
+            samples['points'] = self.points[random.sample(range(len(self.points)), 2), :]
+            samples['vectors'] = [self.vectors[i] for i in random.sample(range(len(self.vectors)), 1)]
         else:
-            samples['points'] = self.points[:,random.sample(xrange(len(self.points)), 3)]
+            samples['points'] = self.points[:, random.sample(range(len(self.points)), 3)]
             samples['vectors'] = None
         return samples
 
@@ -303,20 +326,36 @@ def fit_plane(points, vectors, verticals):
 def plane_horizontalling_rotation(p):
     '''Compute a rotation that brings p to z=0
 
-    >>> p = [1.,2.,3.]
+    >>> p = [1.0, 2.0, 3.0]
     >>> R = plane_horizontalling_rotation(p)
-    >>> np.allclose(R.dot(p), [0,0,np.linalg.norm(p)])
+    >>> np.allclose(R.dot(p), [0, 0, np.linalg.norm(p)])
+    True
+
+    >>> p = [0, 0, 1.0]
+    >>> R = plane_horizontalling_rotation(p)
+    >>> np.allclose(R.dot(p), [0, 0, np.linalg.norm(p)])
+    True
+
+    >>> p = [0, 0, -1.0]
+    >>> R = plane_horizontalling_rotation(p)
+    >>> np.allclose(R.dot(p), [0, 0, np.linalg.norm(p)])
+    True
+
+    >>> p = [1e-14, 1e-14, -1.0]
+    >>> R = plane_horizontalling_rotation(p)
+    >>> np.allclose(R.dot(p), [0, 0, np.linalg.norm(p)])
     True
     '''
     v0 = p[:3]
-    v1 = [0,0,1.0]
+    v1 = [0.0, 0.0, 1.0]
     angle = tf.angle_between_vectors(v0, v1)
-    if angle > 0:
-        return tf.rotation_matrix(angle,
-                                  tf.vector_product(v0, v1)
-                                  )[:3,:3]
-    else:
+    axis = tf.vector_product(v0, v1)
+    if np.linalg.norm(axis) > 0:
+        return tf.rotation_matrix(angle, axis)[:3, :3]
+    elif angle < 1.0:
         return np.eye(3)
+    elif angle > 3.0:
+        return np.diag([1, -1, -1])
 
 
 def fit_similarity_transform(p1, p2, max_iterations=1000, threshold=1):
@@ -330,7 +369,7 @@ def fit_similarity_transform(p1, p2, max_iterations=1000, threshold=1):
 
     best_inliers= 0
 
-    for i in xrange(max_iterations):
+    for i in range(max_iterations):
 
         rnd = np.random.permutation(num_points)
         rnd = rnd[0:dim]
@@ -439,12 +478,26 @@ def rotation_matrix_from_up_vector_and_compass(up_vector, compass_angle):
     True
     >>> np.allclose(camera_compass_angle(R), angle)
     True
+
+    >>> d = [0, 0, 1]
+    >>> angle = 123
+    >>> R = rotation_matrix_from_up_vector_and_compass(d, angle)
+    >>> np.allclose(np.linalg.det(R), 1.0)
+    True
+    >>> up = camera_up_vector(R)
+    >>> np.allclose(d / np.linalg.norm(d), up)
+    True
     """
     r3 = np.array(up_vector) / np.linalg.norm(up_vector)
     ez = np.array([0.0, 0.0, 1.0])
     r2 = ez - np.dot(ez, r3) * r3
-    r2 /= np.linalg.norm(r2)
-    r1 = np.cross(r2, r3)
+    r2n = np.linalg.norm(r2)
+    if r2n > 1e-8:
+        r2 /= r2n
+        r1 = np.cross(r2, r3)
+    else:  # We are looking to nadir or zenith
+        r1 = np.array([1.0, 0.0, 0.0])
+        r2 = np.cross(r3, r1)
 
     compass_rotation = cv2.Rodrigues(np.radians([0.0, 0.0, compass_angle]))[0]
     return np.column_stack([r1, r2, r3]).dot(compass_rotation)
