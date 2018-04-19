@@ -1,4 +1,4 @@
-FROM paulinus/opensfm-docker-base
+FROM scandy-co/opensfm-docker-base:v1
 
 COPY . /source/OpenSfM
 
