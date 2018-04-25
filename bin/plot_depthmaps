@@ -5,6 +5,9 @@ import matplotlib.pyplot as pl
 import numpy as np
 from textwrap import wrap
 
+import os.path, sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from opensfm import dataset
 from opensfm import io
 

@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Wedge
 
+import os.path, sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 from opensfm import dataset
 from opensfm import features
 from opensfm import io
