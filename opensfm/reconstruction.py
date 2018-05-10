@@ -672,6 +672,80 @@ def two_view_reconstruction_general(p1, p2, camera1, camera2, threshold):
         report['method'] = 'plane_based'
         return R_plane, t_plane, inliers_plane, report
 
+def get_pose_from_image(img):
+    data.load_pose(img)
+
+def initial_pose_reconstruction(data, graph, im1, im2, p1, p2):
+    """Start a reconstruction using two shots."""
+    logger.info("Starting reconstruction with {} and {}".format(im1, im2))
+    report = {
+        'image_pair': (im1, im2),
+        'common_tracks': len(p1),
+    }
+
+    cameras = data.load_camera_models()
+    camera1 = cameras[data.load_exif(im1)['camera']]
+    camera2 = cameras[data.load_exif(im2)['camera']]
+
+    # threshold = data.config['five_point_algo_threshold']
+    # min_inliers = data.config['five_point_algo_min_inliers']
+    # R, t, inliers, report['two_view_reconstruction'] = \
+    #     two_view_reconstruction_general(p1, p2, camera1, camera2, threshold)
+    #
+    # logger.info("Two-view reconstruction inliers: {} / {}".format(
+    #     len(inliers), len(p1)))
+    #
+    # if len(inliers) <= 5:
+    #     report['decision'] = "Could not find initial motion"
+    #     logger.info(report['decision'])
+    #     return None, report
+
+    reconstruction = types.Reconstruction()
+    reconstruction.cameras = cameras
+
+    shot1 = types.Shot()
+    shot1.id = im1
+    shot1.camera = camera1
+    shot1.pose = types.Pose()
+
+    R_im1, t_im1 = data.load_pose(im1)
+    shot1.pose.set_rotation_matrix(R_im1)
+    shot1.translation = t_im1
+
+    shot1.metadata = get_image_metadata(data, im1)
+    reconstruction.add_shot(shot1)
+
+    shot2 = types.Shot()
+    shot2.id = im2
+    shot2.camera = camera2
+    shot2.pose = types.Pose()
+
+    R_im2, t_im2 = data.load_pose(im2)
+    shot2.pose.set_rotation_matrix(R_im2)
+    shot2.translation = t_im2
+
+    shot2.metadata = get_image_metadata(data, im2)
+    reconstruction.add_shot(shot2)
+
+    triangulate_shot_features(graph, reconstruction, im1, data.config)
+
+    logger.info("Triangulated: {}".format(len(reconstruction.points)))
+    report['triangulated_points'] = len(reconstruction.points)
+
+    if len(reconstruction.points) < min_inliers:
+        report['decision'] = "Initial motion did not generate enough points"
+        logger.info(report['decision'])
+        return None, report
+
+    bundle_single_view(graph, reconstruction, im2, data.config)
+    retriangulate(graph, reconstruction, data.config)
+    bundle_single_view(graph, reconstruction, im2, data.config)
+
+    report['decision'] = 'Success'
+    report['memory_usage'] = current_memory_usage()
+    return reconstruction, report
+
+
 
 def bootstrap_reconstruction(data, graph, im1, im2, p1, p2):
     """Start a reconstruction using two shots."""
@@ -1158,7 +1232,10 @@ def incremental_reconstruction(data):
             rec_report = {}
             report['reconstructions'].append(rec_report)
             tracks, p1, p2 = common_tracks[im1, im2]
-            reconstruction, rec_report['bootstrap'] = bootstrap_reconstruction(
+            # reconstruction, rec_report['bootstrap'] = bootstrap_reconstruction(
+            #     data, graph, im1, im2, p1, p2)
+
+            reconstruction, rec_report['bootstrap'] = initial_pose_reconstruction(
                 data, graph, im1, im2, p1, p2)
 
             if reconstruction:

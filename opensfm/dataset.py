@@ -42,6 +42,15 @@ class DataSet:
         else:
             self.set_image_path(os.path.join(self.data_path, 'images'))
 
+        # Load list of poses.
+        pose_list_file = os.path.join(self.data_path, 'pose_list.txt')
+        if os.path.isfile(pose_list_file):
+            with io.open_rt(pose_list_file) as fin:
+                lines = fin.read().splitlines()
+            self.set_pose_list(lines)
+        else:
+            self.set_pose_path(os.path.join(self.data_path, 'images'))
+
         # Load list of masks if they exist.
         mask_list_file = os.path.join(self.data_path, 'mask_list.txt')
         if os.path.isfile(mask_list_file):
@@ -171,6 +180,66 @@ class DataSet:
                 name = os.path.basename(path)
                 self.image_list.append(name)
                 self.image_files[name] = path
+
+    def load_pose(self, img_file_name):
+        count = re.findall(r'\d+', img_file_name);
+        print count[0]
+
+        pose_file = 'camerapose' + count[0] + '.txt'
+
+        print pose_file
+
+        a1 = []
+        a2 = []
+        a3 = []
+        a4 = []
+
+        with open(pose_file) as f:
+            for line in f:
+                data = line.split(', ')
+                a1.append(float(data[0]))
+                a2.append(float(data[1]))
+                a3.append(float(data[2]))
+                a4.append(float(data[3]))
+
+        row1 = [a1[0], a2[0], a3[0]]
+        row2 = [a1[1], a2[1], a3[1]]
+        row3 = [a1[2], a2[2], a3[2]]
+
+        translation = [a1[3], a2[3], a3[3]]
+
+        rot_mat = [row1, row2, row3]
+
+        print rot_mat
+
+        print translation
+
+        return rot_mat, translation
+
+
+    @staticmethod
+    def __is_pose_file(filename):
+        return filename.split('.')[-1].lower() in {'txt'}
+
+    def set_pose_path(self, path):
+        """Set pose path and find all poses in there"""
+        self.pose_list = []
+        self.pose_files = {}
+        if os.path.exists(path):
+            for name in os.listdir(path):
+                name = six.text_type(name)
+                if self.__is_pose_file(name):
+                    self.pose_list.append(name)
+                    self.pose_files[name] = os.path.join(path, name)
+
+    def set_image_list(self, image_list):
+            self.pose_list = []
+            self.pose_files = {}
+            for line in pose_list:
+                path = os.path.join(self.data_path, line)
+                name = os.path.basename(path)
+                self.pose_list.append(name)
+                self.pose_files[name] = path
 
     @staticmethod
     def __is_mask_file(filename):
